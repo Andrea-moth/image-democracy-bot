@@ -9,6 +9,10 @@ class reactor(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    #checks for someone adding a reaction
+    #adds score appropriatly 
+    #does nothing if in the wrong channel or a bot reacts
+    #does not allow multiple reactions
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
         info = json.loads(open("./info.json").read())
@@ -36,7 +40,10 @@ class reactor(commands.Cog):
         with open("./info.json", "w") as infoFile:
                 infoFile.seek(0)
                 json.dump(info, infoFile, indent=4)
-
+    
+    #checks for someone removing a reaction
+    #adds/subtracts the score appropriatly
+    #does nothing if not in the correct channel or if it's a bot reacting
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload):
         info = json.loads(open("./info.json").read())
@@ -44,7 +51,7 @@ class reactor(commands.Cog):
 
         if payload.user_id == self.bot.user.id:
             return
-        if  str(message) not in list(info["images"].keys()):
+        if str(message) not in list(info["images"].keys()):
             return
         
         if payload.emoji.name == "🔼":
