@@ -9,6 +9,8 @@ class reactions(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    #whenever an message with an image attachment is sent adds 🔼 and 🔽 
+    #will add a report funtion later
     @commands.Cog.listener()
     async def on_message(self, message):
         info = json.loads(open("./info.json").read())
@@ -32,6 +34,7 @@ class reactions(commands.Cog):
         await message.add_reaction("🔼")
         await message.add_reaction("🔽")
 
+    #checks if message deleted is one stored if so deletes it from record 
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload):
         info = json.loads(open("./info.json").read())
