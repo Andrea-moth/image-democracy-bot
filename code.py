@@ -1,94 +1,39 @@
-import discord, os, json
+import discord, os
+from discord_slash import SlashCommand
 from rich.console import Console
 from rich.progress import Progress
 from discord.ext import commands
 
-#variables needed for run time
 intents = discord.Intents.default()
 intents.members = True
+intents.guilds = True
 
-botId = ""
 bot = commands.Bot(command_prefix="+", intents=intents)
+slash = SlashCommand(bot, sync_commands=True)
+
 debug = Console()
+token = "OTgzOTg4NzkyMDkwMzI5MTY5.GdlhWG.xYanMfTJF8kG9E6pSVg6FIhOe9WIpp96EQhTO8"
 
-#checks info file
-#creates on if none available
-try:
-    info = json.loads(open("./info.json").read())
-except FileNotFoundError:
-    with open("./info.json", "w") as infoFile:
-        info = {"channels": [], "images":{}}
-        infoFile.seek(0)
-        json.dump(info, infoFile, indent=4)
-
-#loads all the cogs
-#now with fancy bar
 async def loadCogs():
     with Progress() as cogLoading:
         loading = cogLoading.add_task("[green1]Loading cogs...", total=100)
-        notLoadedCogs = []
 
         while not cogLoading.finished:
-            #gets all files in ./cogs ending in .py and strips the .py
-            #then loads them with error checking
-            cogs = [cog for cog in os.listdir("./cogs") if cog.endswith(".py")]
+            cogs = [cog[:-3] for cog in os.listdir("./cogs") if cog.endswith(".py")]
             for cog in cogs:
                 try:
-                    bot.load_extension(f"cogs.{cog[:-3]}")
+                    bot.load_extension(f"cogs.{cog}")
                 except commands.errors.NoEntryPointError:
-                    notLoadedCogs.append(f"cogs.{cog[:-3]}")
+                    debug.log(f"[red][ERROR][/red] [dark_violet]{cog} was not able to be loaded")
                 cogLoading.update(loading, advance=(100/len(cogs)))
-
-        return notLoadedCogs
-
-#checks all message ids in info file
-#if it can't find the message it deletes them so as to save space
-async def checkMessages():
-    with Progress() as removeDeadMessages:
-        checkMessages = removeDeadMessages.add_task("[green1]Checking stored message ids...", total=100)
-        removeMessages = removeDeadMessages.add_task("[green1]Removing dead messages..", total=100)
-        lostMessages = []
-        ids = list(info["images"].keys())
-
-        while not removeDeadMessages.finished:
-            #finds all message ids
-            #then tries to load them with error checking
-            for channel in info["channels"]:
-                chnl = bot.get_channel(channel)
-                for msgId in ids:
-                    try:
-                        await chnl.fetch_message(str(msgId))
-                    except discord.errors.NotFound:
-                        lostMessages.append(msgId)
-                try:
-                    removeDeadMessages.update(checkMessages, advance=(100/len(ids)))
-                except ZeroDivisionError:
-                    removeDeadMessages.update(checkMessages, advance=100)
-            
-            #finally removes all the lost messages all at once to avoid file errors
-            if not lostMessages:
-                removeDeadMessages.update(removeMessages, advance=100)
-            for lost in lostMessages:
-                del info["images"][lost]
-                removeDeadMessages.update(removeMessages, advance=(100/len(lostMessages)))                   
-
-#loads cogs, checks the info file and starts the logging
+                
 @bot.event
 async def on_ready():
-    notLoaded = await loadCogs()
-    await checkMessages()
+    debug.rule(f"[green1][Start]", style="dark_violet", align="left")
 
-    with open("./info.json", "w") as infoFile:
-        infoFile.seek(0)
-        json.dump(info, infoFile, indent=4)
-
-    os.system("cls")
-    
-    debug.rule("[green1][Start]", style="dark_violet", align="left")
-    
-    if notLoaded:
-        debug.log(f"[red][ERROR][/red] [dark_violet]{', '.join(notLoaded)} were not able to be loaded")
+    await loadCogs()
 
     debug.log(f"[green1][STARTUP][/green1] [dark_violet]{bot.user} connected")
 
-bot.run(botId)
+if __name__ == "__main__":
+    bot.run(token)  
