@@ -12,7 +12,7 @@ bot = commands.Bot(command_prefix="+", intents=intents)
 slash = SlashCommand(bot, sync_commands=True)
 
 debug = Console()
-token = "OTgzOTg4NzkyMDkwMzI5MTY5.GdlhWG.xYanMfTJF8kG9E6pSVg6FIhOe9WIpp96EQhTO8"
+token = ""
 
 async def loadCogs():
     with Progress() as cogLoading:
