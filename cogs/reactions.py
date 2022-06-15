@@ -1,55 +1,66 @@
 import json
-import discord
 from discord.ext import commands
 from rich.console import Console
 
 debug = Console()
 
-class reactions(commands.Cog):
+class reactor(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    #whenever an message with an image attachment is sent adds 🔼 and 🔽 
-    #will add a report funtion later
     @commands.Cog.listener()
-    async def on_message(self, message):
-        info = json.loads(open("./info.json").read())
-
-        if message.channel.id not in info["channels"]:
-            return
-        if not message.attachments:
+    async def on_raw_reaction_add(self, payload):
+        if payload.member.bot:
             return
 
-        for attachment in message.attachments:
-            if not "image" in attachment.content_type:
-                return
-
-            info["images"].update({message.id:{"img":attachment.url, "score":0}})
-            debug.log(f"[green1][IMAGE][/green1] [dark_violet]{message.id} with image [blue]{attachment.url}[/blue] added[/dark_violet]")
-            
-            with open("./info.json", "w") as infoFile:
-                infoFile.seek(0)
-                json.dump(info, infoFile, indent=4)
-
-        await message.add_reaction("🔼")
-        await message.add_reaction("🔽")
-
-    #checks if message deleted is one stored if so deletes it from record 
-    @commands.Cog.listener()
-    async def on_raw_message_delete(self, payload):
         info = json.loads(open("./info.json").read())
-        msgId = str(payload.message_id)
 
-        try:
-            del info["images"][msgId]
-        except KeyError:
-            return 
+        guildId = str(payload.guild_id)
+        channel = self.bot.get_channel(payload.channel_id)
+        channelId = str(payload.channel_id)
+        message = await channel.fetch_message(payload.message_id)
+        messageId = str(payload.message_id)
 
-        with open("info.json", "w") as infoFile:
-            infoFile.seek(0)
+        if messageId not in info[guildId][channelId]:
+            return
+
+        for reaction in message.reactions:
+            if payload.member in await reaction.users().flatten() and str(reaction) != str(payload.emoji):
+                await message.remove_reaction(reaction.emoji, payload.member)
+        
+        if payload.emoji.name == "🔼":
+            info[guildId][channelId][messageId]["score"] += 1
+            debug.log(f"[green1][REACTION][/green1] [dark_violet]+1 to [blue]{info[guildId][channelId][messageId]['url']}[/blue][/dark_violet]")
+        if payload.emoji.name == "🔽":
+            info[guildId][channelId][messageId]["score"] -= 1
+            debug.log(f"[green1][REACTION][/green1] [dark_violet]-1 to [blue]{info[guildId][channelId][messageId]['url']}[/blue][/dark_violet]")
+
+        with open("./info.json", "w") as infoFile:
             json.dump(info, infoFile, indent=4)
-        debug.log(f"[green1][DELETE][/green1] [dark_violet]{msgId} deleted")
+    
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload):
+        if payload.user_id == self.bot.user.id:
+            return
 
+        info = json.loads(open("./info.json").read())
+
+        guildId = str(payload.guild_id)
+        channelId = str(payload.channel_id)
+        messageId = str(payload.message_id)
+
+        if messageId not in info[guildId][channelId]:
+            return
+        
+        if payload.emoji.name == "🔼":
+            info[guildId][channelId][messageId]["score"] -= 1
+            debug.log(f"[green1][REACTION][/green1] [dark_violet]-1 to [blue]{info[guildId][channelId][messageId]['url']}[/blue][/dark_violet]")
+        if payload.emoji.name == "🔽":
+            info[guildId][channelId][messageId]["score"] += 1
+            debug.log(f"[green1][REACTION][/green1] [dark_violet]+1 to [blue]{info[guildId][channelId][messageId]['url']}[/blue][/dark_violet]")
+
+        with open("./info.json", "w") as infoFile:
+            json.dump(info, infoFile, indent=4)
 
 def setup(bot):
-    bot.add_cog(reactions(bot))
+    bot.add_cog(reactor(bot))
